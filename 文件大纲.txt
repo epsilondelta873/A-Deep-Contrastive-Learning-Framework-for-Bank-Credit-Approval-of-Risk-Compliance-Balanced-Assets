@@ -1,0 +1,19 @@
+my_project/
+├── data/               # 存放数据集（原始数据和处理后的数据）
+│   ├── raw/            # 原始数据（只读）
+│   └── processed/      # 预处理后的数据（如 .npy 或 .pt 文件）
+├── configs/            # 配置文件（存放超参数，如 batch_size, lr 等）
+│   └── base_config.yaml
+├── models/             # 模型定义
+│   ├── __init__.py
+│   ├── backbone.py     # 基础网络结构
+│   └── loss.py         # 自定义损失函数（如对比损失）
+├── utils/              # 工具函数
+│   ├── dataset.py      # 数据加载与处理 (Dataset & DataLoader)
+│   ├── metrics.py      # 评估指标
+│   └── helpers.py      # 日志、保存模型等辅助功能
+├── scripts/            # 存放一些一次性的脚本（如数据清洗、绘图）
+├── train.py            # 主训练程序
+├── evaluate.py         # 验证/测试脚本
+├── requirements.txt    # 环境依赖列表
+└── README.md           # 项目说明文档
