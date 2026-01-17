@@ -1,6 +1,6 @@
 # -*- coding: utf-8 -*-
 # 基础配置文件
-# 该文件包含所有模型训练和评估的默认超参数
+# 该文件包含baseline模型训练和评估的默认超参数
 
 # ====================================
 # 模型配置
@@ -32,4 +32,5 @@ training:
 evaluation:
   top_percent: 0.3                            # 选择排名前 N% 的样本计算利润
   model_type: classification                  # 模型类型: 'classification' 或 'regression'
+  threshold: 0.2                              # 分类阈值（仅二分类模型使用）
   output_file: evaluation_results.csv         # 评估结果输出文件

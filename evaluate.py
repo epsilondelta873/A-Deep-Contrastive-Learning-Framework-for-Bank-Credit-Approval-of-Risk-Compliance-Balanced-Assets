@@ -151,6 +151,12 @@ def main():
         default=None,
         help="选择排名前 N% 的样本计算利润，会覆盖配置文件中的设置"
     )
+    parser.add_argument(
+        "--threshold",
+        type=float,
+        default=None,
+        help="分类阈值（仅二分类模型使用），会覆盖配置文件中的设置"
+    )
     
     args = parser.parse_args()
     
@@ -173,6 +179,7 @@ def main():
             'evaluation': {
                 'model_type': args.model_type or 'classification',
                 'top_percent': args.top_percent or 0.3,
+                'threshold': args.threshold or 0.5,
                 'output_file': args.output_file or 'evaluation_results.csv'
             }
         })
@@ -185,6 +192,7 @@ def main():
     print(f"  批次大小: {config.data.batch_size}")
     print(f"  特征数量: {config.data.top_n_features}")
     print(f"  Top百分比: {config.evaluation.top_percent}")
+    print(f"  分类阈值: {config.evaluation.threshold}")
     print(f"  输出文件: {config.evaluation.output_file}")
     print("="*50 + "\n")
     
@@ -232,8 +240,8 @@ def main():
         
         # 4.1 计算分类指标（仅二分类模型）
         if config.evaluation.model_type == 'classification':
-            print(f"  Computing classification metrics...")
-            cls_metrics = calculate_classification_metrics(y_true, y_pred)
+            print(f"  Computing classification metrics (threshold={config.evaluation.threshold})...")
+            cls_metrics = calculate_classification_metrics(y_true, y_pred, threshold=config.evaluation.threshold)
             metrics.update(cls_metrics)
             
             # 打印分类指标

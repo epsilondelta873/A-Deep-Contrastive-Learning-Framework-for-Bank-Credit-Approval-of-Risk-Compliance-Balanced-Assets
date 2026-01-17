@@ -168,6 +168,7 @@ def merge_args_with_config(config: Config, args) -> Config:
         # 评估参数
         'top_percent': ('evaluation', 'top_percent'),
         'model_type': ('evaluation', 'model_type'),
+        'threshold': ('evaluation', 'threshold'),
         'output_file': ('evaluation', 'output_file'),
     }
     
