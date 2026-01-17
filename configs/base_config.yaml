@@ -1,0 +1,35 @@
+# -*- coding: utf-8 -*-
+# 基础配置文件
+# 该文件包含所有模型训练和评估的默认超参数
+
+# ====================================
+# 模型配置
+# ====================================
+model:
+  name: baseline          # 模型名称
+  lr: 0.01               # 学习率
+  epochs: 20             # 训练轮数
+
+# ====================================
+# 数据配置
+# ====================================
+data:
+  data_dir: data/processed                    # 数据目录路径
+  iv_path: data/processed/iv_results.xlsx     # IV 结果文件路径
+  batch_size: 64                              # 批次大小
+  top_n_features: 20                          # 选择 IV 值最高的前 N 个特征
+  data_type: woe                              # 数据类型: 'woe' 或 'raw'
+
+# ====================================
+# 训练配置
+# ====================================
+training:
+  output_dir: model_param                    # 模型保存目录
+
+# ====================================
+# 评估配置
+# ====================================
+evaluation:
+  top_percent: 0.3                            # 选择排名前 N% 的样本计算利润
+  model_type: classification                  # 模型类型: 'classification' 或 'regression'
+  output_file: evaluation_results.csv         # 评估结果输出文件
