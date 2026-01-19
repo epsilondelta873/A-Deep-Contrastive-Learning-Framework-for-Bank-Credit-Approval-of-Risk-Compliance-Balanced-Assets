@@ -63,12 +63,20 @@ class BaselineCheck(BaseModel):
             config: 配置字典，可包含以下参数：
                 - lr: 学习率，默认 0.01
                 - epochs: 训练轮数，默认 20
+                - experiment_name: 实验名称（可选）
+                - tensorboard: TensorBoard 配置字典（可选）
         """
         self.config = config or {}
         
         # 读取超参数配置
         self.lr = self.config.get('lr', 0.01)
         self.epochs = self.config.get('epochs', 20)
+        
+        # 读取 TensorBoard 配置
+        tensorboard_config = self.config.get('tensorboard', {})
+        self.tensorboard_enabled = tensorboard_config.get('enabled', True)
+        self.tensorboard_log_dir = tensorboard_config.get('log_dir', 'runs')
+        self.experiment_name = self.config.get('experiment_name', None)
         
         # 设备选择：优先使用 GPU，若不可用则使用 CPU
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -82,7 +90,7 @@ class BaselineCheck(BaseModel):
         
         Args:
             train_loader: 训练数据的 DataLoader
-            valid_loader: 验证数据的 DataLoader（可选，当前未使用）
+            valid_loader: 验证数据的 DataLoader（可选）
         """
         # 步骤 1：推断输入维度并初始化模型
         first_batch_X, _, _ = next(iter(train_loader))  # 解包三元组，忽略 y 和 profit
@@ -99,9 +107,17 @@ class BaselineCheck(BaseModel):
         # Adam 优化器：自适应学习率优化算法
         optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
         
+        # 步骤 3：创建 TensorBoard writer（如果启用）
+        writer = None
+        if self.tensorboard_enabled:
+            writer = self._create_tensorboard_writer(
+                experiment_name=self.experiment_name,
+                log_dir=self.tensorboard_log_dir
+            )
+        
         print(f"Start training Torch Baseline (LR) on {self.device}...")
         
-        # 步骤 3：迭代训练
+        # 步骤 4：迭代训练
         for epoch in range(self.epochs):
             self.model.train()  # 设置为训练模式
             total_loss = 0
@@ -129,10 +145,27 @@ class BaselineCheck(BaseModel):
                 
                 total_loss += loss.item()
             
-            # 输出训练进度
+            # 计算平均训练 loss
             avg_loss = total_loss / len(train_loader)
+            
+            # 记录训练 loss 到 TensorBoard
+            if writer:
+                self._log_metrics(writer, {'Loss/train': avg_loss}, epoch)
+            
+            # 如果提供验证集，计算并记录验证 loss
+            if valid_loader is not None:
+                avg_valid_loss = self._compute_validation_loss(valid_loader, criterion)
+                if writer:
+                    self._log_metrics(writer, {'Loss/valid': avg_valid_loss}, epoch)
+            
+            # 输出训练进度
             if (epoch + 1) % 5 == 0:
-                print(f"Epoch [{epoch+1}/{self.epochs}], Loss: {avg_loss:.4f}")
+                valid_msg = f", Valid Loss: {avg_valid_loss:.4f}" if valid_loader else ""
+                print(f"Epoch [{epoch+1}/{self.epochs}], Train Loss: {avg_loss:.4f}{valid_msg}")
+        
+        # 步骤 5：关闭 TensorBoard writer
+        if writer:
+            self._close_tensorboard_writer(writer)
 
     def predict(self, test_loader):
         """
@@ -194,3 +227,28 @@ class BaselineCheck(BaseModel):
         # 重建模型结构并加载参数
         self.model = LogisticRegression(input_dim).to(self.device)
         self.model.load_state_dict(checkpoint['state_dict'])
+    
+    def _compute_validation_loss(self, valid_loader, criterion):
+        """
+        计算验证集上的平均 loss
+        
+        Args:
+            valid_loader: 验证数据的 DataLoader
+            criterion: 损失函数
+            
+        Returns:
+            验证集平均 loss
+        """
+        self.model.eval()  # 设置为评估模式
+        valid_loss = 0
+        
+        with torch.no_grad():
+            for X_batch, y_batch, _ in valid_loader:
+                X_batch = X_batch.to(self.device)
+                y_batch = y_batch.to(self.device).float().view(-1, 1)
+                outputs = self.model(X_batch)
+                loss = criterion(outputs, y_batch)
+                valid_loss += loss.item()
+        
+        self.model.train()  # 切回训练模式
+        return valid_loss / len(valid_loader)

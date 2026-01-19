@@ -81,6 +81,12 @@ def main():
         default=None,
         help="选择 IV 值最高的前 N 个特征，会覆盖配置文件中的设置"
     )
+    parser.add_argument(
+        "--experiment_name",
+        type=str,
+        default=None,
+        help="实验名称，用于 TensorBoard 日志区分（默认自动生成）"
+    )
     
     args = parser.parse_args()
     
@@ -134,7 +140,9 @@ def main():
     # 将模型配置传递给模型
     model_config = {
         'lr': config.model.lr,
-        'epochs': config.model.epochs
+        'epochs': config.model.epochs,
+        'experiment_name': args.experiment_name,
+        'tensorboard': config.training.get('tensorboard', {})
     }
     model = get_model(config.model.name, config=model_config)
     
