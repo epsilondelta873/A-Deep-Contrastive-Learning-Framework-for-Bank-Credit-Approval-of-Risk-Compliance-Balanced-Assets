@@ -62,6 +62,9 @@ MSE_WEIGHT = 1.0               # MSE 损失权重
 RNC_TEMPERATURE = 0.1          # RnC 温度参数
 FREEZE_ENCODER = False         # 微调时是否冻结编码器
 FINETUNE_WEIGHT_DECAY = 1e-4
+ENCODER_LR_SCALE = 0.5
+HEAD_LR_SCALE = 1.5
+GRAD_CLIP_NORM = 5.0
 
 # ============================================================
 # 模型定义 — agent 可以修改架构
@@ -330,14 +333,25 @@ def stage2_finetune(encoder, input_dim, device):
 
     # 优化器
     optimizer = optim.AdamW(
-        list(encoder.parameters()) + list(reg_head.parameters()),
+        [
+            {
+                'params': encoder.parameters(),
+                'lr': FINETUNE_LR * ENCODER_LR_SCALE
+            },
+            {
+                'params': reg_head.parameters(),
+                'lr': FINETUNE_LR * HEAD_LR_SCALE
+            }
+        ],
         lr=FINETUNE_LR,
         weight_decay=FINETUNE_WEIGHT_DECAY
     )
 
     print(
         f"  损失: {MSE_WEIGHT}*MSE + {LAMBDA_RNC}*RnC, "
-        f"lr={FINETUNE_LR}, wd={FINETUNE_WEIGHT_DECAY}"
+        f"base_lr={FINETUNE_LR}, enc_lr={FINETUNE_LR * ENCODER_LR_SCALE}, "
+        f"head_lr={FINETUNE_LR * HEAD_LR_SCALE}, wd={FINETUNE_WEIGHT_DECAY}, "
+        f"clip={GRAD_CLIP_NORM}"
     )
     print("  Best model checkpoint: 以 test Top30% Total Profit 为主，MSE 仅作平手裁决")
 
@@ -367,6 +381,10 @@ def stage2_finetune(encoder, input_dim, device):
 
             optimizer.zero_grad()
             loss.backward()
+            torch.nn.utils.clip_grad_norm_(
+                list(encoder.parameters()) + list(reg_head.parameters()),
+                GRAD_CLIP_NORM
+            )
             optimizer.step()
             total_loss += loss.item()
             n_batches += 1
