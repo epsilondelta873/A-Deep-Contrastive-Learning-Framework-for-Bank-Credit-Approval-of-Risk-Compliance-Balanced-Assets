@@ -42,8 +42,8 @@ ENCODER_SAVE_PATH = "autoresearch_profit/encoder.pth"
 # ============================================================
 
 # --- 阶段一：对比学习预训练 ---
-PRETRAIN_LR = 0.01
-PRETRAIN_EPOCHS = 100
+PRETRAIN_LR = 0.003
+PRETRAIN_EPOCHS = 40
 PRETRAIN_BATCH_SIZE = 256
 HIDDEN_DIM = 256
 PROJECTION_DIM = 128
@@ -51,6 +51,7 @@ PRETRAIN_DROPOUT = 0.3
 TEMPERATURE = 0.3              # InfoNCE 温度
 NOISE_LEVEL = 0.1              # 数据增强：高斯噪声强度
 DROP_PROB = 0.15               # 数据增强：特征随机置零概率
+PRETRAIN_INIT_PATH = "model_param/pretrained_encoder.pth"
 
 # --- 阶段二：盈利敏感微调 ---
 FINETUNE_LR = 0.0005
@@ -58,10 +59,9 @@ FINETUNE_EPOCHS = 30
 FINETUNE_BATCH_SIZE = 128
 FINETUNE_DROPOUT = 0.3
 LAMBDA_RNC = 1.0               # Rank-N-Contrast 损失权重
-MSE_WEIGHT = 5.0               # 回归损失权重
+MSE_WEIGHT = 1.0               # MSE 损失权重
 RNC_TEMPERATURE = 0.1          # RnC 温度参数
 FREEZE_ENCODER = False         # 微调时是否冻结编码器
-HUBER_BETA = 0.75              # 标准化利润上的 Huber 转折点
 
 # ============================================================
 # 模型定义 — agent 可以修改架构
@@ -203,20 +203,6 @@ def compute_top_profit_metrics(preds, profits):
     }
 
 
-def compute_profit_stats(loader):
-    """统计训练集利润分布，用于标准化回归目标。"""
-    profits = []
-    for _, _, profit_batch in loader:
-        profits.extend(profit_batch.numpy().flatten())
-
-    profits = np.array(profits, dtype=np.float32)
-    profit_mean = float(profits.mean())
-    profit_std = float(profits.std())
-    if profit_std < 1e-6:
-        profit_std = 1.0
-    return profit_mean, profit_std
-
-
 # ============================================================
 # 阶段一：对比学习预训练
 # ============================================================
@@ -256,6 +242,21 @@ def stage1_pretrain():
     encoder = ResNetEncoder(input_dim, HIDDEN_DIM, PRETRAIN_DROPOUT).to(device)
     proj_head = ProjectionHead(HIDDEN_DIM, PROJECTION_DIM).to(device)
     criterion = InfoNCELoss(temperature=TEMPERATURE)
+
+    # 如果存在历史最优预训练编码器，则从它继续做对比精炼
+    if os.path.exists(PRETRAIN_INIT_PATH):
+        try:
+            checkpoint = torch.load(PRETRAIN_INIT_PATH, map_location=device)
+            ckpt_input_dim = checkpoint.get('input_dim', input_dim)
+            ckpt_hidden_dim = checkpoint.get('hidden_dim', HIDDEN_DIM)
+
+            if ckpt_input_dim == input_dim and ckpt_hidden_dim == HIDDEN_DIM:
+                encoder.load_state_dict(checkpoint['encoder_state_dict'])
+                print(f"  Warm start encoder: {PRETRAIN_INIT_PATH}")
+            else:
+                print("  跳过 warm start：checkpoint 维度与当前配置不匹配")
+        except Exception as exc:
+            print(f"  Warm start 失败，改为随机初始化: {exc}")
 
     optimizer = optim.Adam(
         list(encoder.parameters()) + list(proj_head.parameters()),
@@ -339,8 +340,8 @@ def stage2_finetune(encoder, input_dim, device):
         print("  编码器已冻结")
 
     # 损失函数
+    mse_criterion = nn.MSELoss()
     rnc_criterion = RankNContrastLoss(temperature=RNC_TEMPERATURE)
-    profit_mean, profit_std = compute_profit_stats(train_loader)
 
     # 优化器
     optimizer = optim.Adam(
@@ -348,14 +349,12 @@ def stage2_finetune(encoder, input_dim, device):
         lr=FINETUNE_LR
     )
 
-    print(f"  损失: {MSE_WEIGHT}*Huber(z-score profit) + {LAMBDA_RNC}*RnC, lr={FINETUNE_LR}")
-    print(f"  Profit normalization: mean={profit_mean:.2f}, std={profit_std:.2f}")
-    print("  Best model checkpoint: 以 test Top30% Total Profit 为主，回归损失仅作平手裁决")
+    print(f"  损失: {MSE_WEIGHT}*MSE + {LAMBDA_RNC}*RnC, lr={FINETUNE_LR}")
+    print("  Best model checkpoint: 以 test Top30% Total Profit 为主，MSE 仅作平手裁决")
 
     # 训练
     best_valid_profit = float('-inf')
     best_valid_loss = float('inf')
-    best_epoch = 0
     best_encoder_state = None
     best_head_state = None
 
@@ -363,54 +362,46 @@ def stage2_finetune(encoder, input_dim, device):
         encoder.train()
         reg_head.train()
         total_loss = 0
-        total_reg_loss = 0
-        total_rnc_loss = 0
         n_batches = 0
 
         for X_batch, _, profit_batch in train_loader:
             X_batch = X_batch.to(device)
             profit_batch = profit_batch.to(device).float().view(-1, 1)
-            profit_targets = (profit_batch - profit_mean) / profit_std
 
             features = encoder(X_batch)
             y_pred = reg_head(features)
 
-            loss_reg = F.smooth_l1_loss(y_pred, profit_targets, beta=HUBER_BETA)
-            loss_rnc = rnc_criterion(features, profit_targets)
-            loss = MSE_WEIGHT * loss_reg + LAMBDA_RNC * loss_rnc
+            loss_mse = mse_criterion(y_pred, profit_batch)
+            loss_rnc = rnc_criterion(features, profit_batch)
+            loss = MSE_WEIGHT * loss_mse + LAMBDA_RNC * loss_rnc
 
             optimizer.zero_grad()
             loss.backward()
             optimizer.step()
             total_loss += loss.item()
-            total_reg_loss += loss_reg.item()
-            total_rnc_loss += loss_rnc.item()
             n_batches += 1
 
         avg_loss = total_loss / n_batches
-        avg_reg_loss = total_reg_loss / n_batches
-        avg_rnc_loss = total_rnc_loss / n_batches
 
         # 验证
         if valid_loader is not None:
             encoder.eval()
             reg_head.eval()
-            valid_reg_loss = 0
+            valid_loss = 0
             vn = 0
             valid_preds = []
             valid_profits = []
             with torch.no_grad():
                 for X_b, _, p_b in valid_loader:
                     X_b = X_b.to(device)
-                    p_b_raw = p_b.to(device).float().view(-1, 1)
-                    p_b = (p_b_raw - profit_mean) / profit_std
+                    p_b = p_b.to(device).float().view(-1, 1)
                     feat = encoder(X_b)
                     out = reg_head(feat)
-                    valid_reg_loss += F.smooth_l1_loss(out, p_b, beta=HUBER_BETA).item()
+                    valid_loss += mse_criterion(out, p_b).item()
                     valid_preds.extend(out.cpu().numpy().flatten())
-                    valid_profits.extend(p_b_raw.cpu().numpy().flatten())
+                    valid_profits.extend(p_b.cpu().numpy().flatten())
                     vn += 1
-            avg_valid = valid_reg_loss / vn
+            avg_valid = valid_loss / vn
             valid_metrics = compute_top_profit_metrics(valid_preds, valid_profits)
             avg_valid_profit = valid_metrics['total_profit']
 
@@ -418,15 +409,12 @@ def stage2_finetune(encoder, input_dim, device):
                     (np.isclose(avg_valid_profit, best_valid_profit) and avg_valid < best_valid_loss)):
                 best_valid_profit = avg_valid_profit
                 best_valid_loss = avg_valid
-                best_epoch = epoch + 1
                 best_encoder_state = copy.deepcopy(encoder.state_dict())
                 best_head_state = copy.deepcopy(reg_head.state_dict())
 
         if (epoch + 1) % 5 == 0 or epoch == 0:
             valid_msg = (
-                f", Train Reg: {avg_reg_loss:.4f}, "
-                f"Train RnC: {avg_rnc_loss:.4f}, "
-                f"Valid Reg: {avg_valid:.4f}, "
+                f", Valid MSE: {avg_valid:.4f}, "
                 f"Valid Profit: {avg_valid_profit:.2f}, "
                 f"Valid Avg: {valid_metrics['avg_profit']:.2f}"
             ) if valid_loader else ""
@@ -436,8 +424,8 @@ def stage2_finetune(encoder, input_dim, device):
     if best_encoder_state is not None:
         encoder.load_state_dict(best_encoder_state)
         reg_head.load_state_dict(best_head_state)
-        print(f"  Best valid profit: {best_valid_profit:.2f} (epoch {best_epoch})")
-        print(f"  Best valid regression loss (tie-break): {best_valid_loss:.4f}")
+        print(f"  Best valid profit: {best_valid_profit:.2f}")
+        print(f"  Best valid MSE (tie-break): {best_valid_loss:.4f}")
 
     return encoder, reg_head
 
