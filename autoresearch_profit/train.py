@@ -54,7 +54,7 @@ DROP_PROB = 0.15               # 数据增强：特征随机置零概率
 
 # --- 阶段二：盈利敏感微调 ---
 FINETUNE_LR = 0.0003
-FINETUNE_EPOCHS = 50
+FINETUNE_EPOCHS = 60
 FINETUNE_BATCH_SIZE = 128
 FINETUNE_DROPOUT = 0.3
 LAMBDA_RNC = 1.0               # Rank-N-Contrast 损失权重
