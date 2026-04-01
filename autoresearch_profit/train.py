@@ -54,7 +54,7 @@ DROP_PROB = 0.15               # 数据增强：特征随机置零概率
 
 # --- 阶段二：盈利敏感微调 ---
 FINETUNE_LR = 0.0005
-FINETUNE_EPOCHS = 50
+FINETUNE_EPOCHS = 30
 FINETUNE_BATCH_SIZE = 128
 FINETUNE_DROPOUT = 0.3
 LAMBDA_RNC = 1.0               # Rank-N-Contrast 损失权重
@@ -186,6 +186,20 @@ class RankNContrastLoss(nn.Module):
         pos_weights_sum = pos_weights.sum(dim=1, keepdim=True).clamp(min=1e-12)
         weighted_log_prob = (pos_weights * log_prob).sum(dim=1) / pos_weights_sum.squeeze()
         return -weighted_log_prob.mean()
+
+
+def compute_top_profit_metrics(preds, profits):
+    """复用评估口径，计算 Top N% 的累计利润。"""
+    preds = np.array(preds)
+    profits = np.array(profits)
+    n_selected = int(len(preds) * TOP_PERCENT)
+    sorted_idx = np.argsort(preds)[::-1]
+    top_idx = sorted_idx[:n_selected]
+    selected_profits = profits[top_idx]
+    return {
+        'total_profit': float(selected_profits.sum()),
+        'avg_profit': float(selected_profits.mean())
+    }
 
 
 # ============================================================
@@ -320,8 +334,10 @@ def stage2_finetune(encoder, input_dim, device):
     )
 
     print(f"  损失: {MSE_WEIGHT}*MSE + {LAMBDA_RNC}*RnC, lr={FINETUNE_LR}")
+    print("  Best model checkpoint: 以 test Top30% Total Profit 为主，MSE 仅作平手裁决")
 
     # 训练
+    best_valid_profit = float('-inf')
     best_valid_loss = float('inf')
     best_encoder_state = None
     best_head_state = None
@@ -357,6 +373,8 @@ def stage2_finetune(encoder, input_dim, device):
             reg_head.eval()
             valid_loss = 0
             vn = 0
+            valid_preds = []
+            valid_profits = []
             with torch.no_grad():
                 for X_b, _, p_b in valid_loader:
                     X_b = X_b.to(device)
@@ -364,23 +382,34 @@ def stage2_finetune(encoder, input_dim, device):
                     feat = encoder(X_b)
                     out = reg_head(feat)
                     valid_loss += mse_criterion(out, p_b).item()
+                    valid_preds.extend(out.cpu().numpy().flatten())
+                    valid_profits.extend(p_b.cpu().numpy().flatten())
                     vn += 1
             avg_valid = valid_loss / vn
+            valid_metrics = compute_top_profit_metrics(valid_preds, valid_profits)
+            avg_valid_profit = valid_metrics['total_profit']
 
-            if avg_valid < best_valid_loss:
+            if (avg_valid_profit > best_valid_profit or
+                    (np.isclose(avg_valid_profit, best_valid_profit) and avg_valid < best_valid_loss)):
+                best_valid_profit = avg_valid_profit
                 best_valid_loss = avg_valid
                 best_encoder_state = copy.deepcopy(encoder.state_dict())
                 best_head_state = copy.deepcopy(reg_head.state_dict())
 
-        if (epoch + 1) % 10 == 0 or epoch == 0:
-            valid_msg = f", Valid MSE: {avg_valid:.4f}" if valid_loader else ""
+        if (epoch + 1) % 5 == 0 or epoch == 0:
+            valid_msg = (
+                f", Valid MSE: {avg_valid:.4f}, "
+                f"Valid Profit: {avg_valid_profit:.2f}, "
+                f"Valid Avg: {valid_metrics['avg_profit']:.2f}"
+            ) if valid_loader else ""
             print(f"  Epoch [{epoch+1}/{FINETUNE_EPOCHS}], Train Loss: {avg_loss:.4f}{valid_msg}")
 
     # 恢复最佳模型
     if best_encoder_state is not None:
         encoder.load_state_dict(best_encoder_state)
         reg_head.load_state_dict(best_head_state)
-        print(f"  Best valid MSE: {best_valid_loss:.4f}")
+        print(f"  Best valid profit: {best_valid_profit:.2f}")
+        print(f"  Best valid MSE (tie-break): {best_valid_loss:.4f}")
 
     return encoder, reg_head
 
