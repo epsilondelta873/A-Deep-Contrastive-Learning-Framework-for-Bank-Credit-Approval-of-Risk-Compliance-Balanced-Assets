@@ -55,12 +55,6 @@ def main():
         help="编码器保存目录"
     )
     parser.add_argument(
-        "--experiment_name",
-        type=str,
-        default=None,
-        help="实验名称"
-    )
-    parser.add_argument(
         "--seed",
         type=int,
         default=42,
@@ -141,8 +135,6 @@ def main():
     model_config = {
         'lr': config.model.lr,
         'epochs': config.model.epochs,
-        'experiment_name': args.experiment_name,
-        'tensorboard': config.training.get('tensorboard', {}),
         'params': config.model.get('params', {})
     }
     

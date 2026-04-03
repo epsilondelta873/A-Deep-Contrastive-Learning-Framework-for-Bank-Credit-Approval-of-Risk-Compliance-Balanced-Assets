@@ -42,8 +42,6 @@ class ProfitResNet(BaseModel):
                     - lambda_rnc: Rank-N-Contrast 损失权重
                     - mse_weight: MSE 损失权重
                     - rnc_temperature: RnC 温度参数
-                - experiment_name: 实验名称
-                - tensorboard: TensorBoard 配置
         """
         self.config = config or {}
         
@@ -82,12 +80,6 @@ class ProfitResNet(BaseModel):
         print(f"  head_lr_scale={self.head_lr_scale}")
         print(f"  grad_clip_norm={self.grad_clip_norm}")
         print(f"  top_percent={self.top_percent}")
-        
-        # TensorBoard 配置
-        tensorboard_config = self.config.get('tensorboard', {})
-        self.tensorboard_enabled = tensorboard_config.get('enabled', True)
-        self.tensorboard_log_dir = tensorboard_config.get('log_dir', 'runs')
-        self.experiment_name = self.config.get('experiment_name', None)
         
         # 设备选择
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -186,15 +178,7 @@ class ProfitResNet(BaseModel):
             weight_decay=self.weight_decay
         )
         
-        # 步骤 7：创建 TensorBoard writer
-        writer = None
-        if self.tensorboard_enabled:
-            writer = self._create_tensorboard_writer(
-                experiment_name=self.experiment_name,
-                log_dir=self.tensorboard_log_dir
-            )
-        
-        # 步骤 8：初始化 Best Model Checkpoint
+        # 步骤 7：初始化 Best Model Checkpoint
         best_valid_profit = float('-inf')
         best_valid_loss = float('inf')
         best_epoch = 0
@@ -257,14 +241,6 @@ class ProfitResNet(BaseModel):
             avg_mse = total_mse_loss / n_batches
             avg_rnc = total_rnc_loss / n_batches
             
-            # 记录到 TensorBoard
-            if writer:
-                self._log_metrics(writer, {
-                    'Loss/total': avg_loss,
-                    'Loss/mse': avg_mse,
-                    'Loss/rnc': avg_rnc
-                }, epoch)
-            
             # 验证集评估
             avg_valid_loss = None
             avg_valid_profit = None
@@ -275,12 +251,6 @@ class ProfitResNet(BaseModel):
                     mse_criterion
                 )
                 avg_valid_profit = valid_profit_metrics['total_profit']
-                if writer:
-                    self._log_metrics(writer, {
-                        'Loss/valid': avg_valid_loss,
-                        'Profit/valid_total': avg_valid_profit,
-                        'Profit/valid_avg': valid_profit_metrics['avg_profit']
-                    }, epoch)
                 
                 # Best Model Checkpoint
                 if (
@@ -329,10 +299,6 @@ class ProfitResNet(BaseModel):
         
         # 组装完整模型用于保存/预测
         self.model = nn.Sequential(self.encoder, self.regression_head)
-        
-        # 步骤 11：关闭 TensorBoard
-        if writer:
-            self._close_tensorboard_writer(writer)
     
     def predict(self, test_loader):
         """

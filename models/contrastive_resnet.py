@@ -11,7 +11,6 @@ import torch.nn as nn
 import torch.nn.functional as F
 import torch.optim as optim
 import numpy as np
-import os
 from .resnet_encoder import ResNetEncoder, ProjectionHead, ClassificationHead
 from .base import BaseModel
 from . import register_model
@@ -101,8 +100,6 @@ class ContrastiveResNet(BaseModel):
                     - projection_dim: 投影头输出维度
                     - dropout: Dropout 比例
                     - temperature: InfoNCE 温度参数
-                - experiment_name: 实验名称
-                - tensorboard: TensorBoard 配置
         """
         self.config = config or {}
         
@@ -122,12 +119,6 @@ class ContrastiveResNet(BaseModel):
         print(f"  projection_dim={self.projection_dim}")
         print(f"  dropout={self.dropout}")
         print(f"  temperature={self.temperature}")
-        
-        # TensorBoard 配置
-        tensorboard_config = self.config.get('tensorboard', {})
-        self.tensorboard_enabled = tensorboard_config.get('enabled', True)
-        self.tensorboard_log_dir = tensorboard_config.get('log_dir', 'runs')
-        self.experiment_name = self.config.get('experiment_name', None)
         
         # 设备选择
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -174,14 +165,6 @@ class ContrastiveResNet(BaseModel):
             lr=self.lr
         )
         
-        # 步骤 3：创建 TensorBoard writer
-        writer = None
-        if self.tensorboard_enabled:
-            writer = self._create_tensorboard_writer(
-                experiment_name=self.experiment_name,
-                log_dir=self.tensorboard_log_dir
-            )
-        
         print(f"\n开始对比学习预训练，设备={self.device}")
         print(f"训练轮数: {self.epochs}, Batch Size: {train_loader.batch_size}")
         print(f"总样本数: ~{len(train_loader) * train_loader.batch_size}")
@@ -224,10 +207,6 @@ class ContrastiveResNet(BaseModel):
             # 计算平均损失
             avg_loss = total_loss / batch_count
             
-            # 记录到 TensorBoard
-            if writer:
-                self._log_metrics(writer, {'Loss/contrastive': avg_loss}, epoch)
-            
             # Best Model Checkpoint: 保存loss最低的编码器
             if avg_loss < best_loss:
                 best_loss = avg_loss
@@ -243,10 +222,6 @@ class ContrastiveResNet(BaseModel):
         print(f"\n✓ 对比学习预训练完成！")
         print(f"✓ 最佳模型: Epoch {best_epoch}, Loss: {best_loss:.4f}")
         
-        # 步骤 5：关闭 TensorBoard
-        if writer:
-            self._close_tensorboard_writer(writer)
-    
     def save_encoder(self, path):
         """
         保存编码器权重（用于后续微调）
@@ -359,8 +334,7 @@ if __name__ == "__main__":
             'projection_dim': 32,
             'dropout': 0.3,
             'temperature': 0.5
-        },
-        'tensorboard': {'enabled': False}
+        }
     }
     
     # 创建并训练模型

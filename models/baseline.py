@@ -63,20 +63,12 @@ class BaselineCheck(BaseModel):
             config: 配置字典，可包含以下参数：
                 - lr: 学习率，默认 0.01
                 - epochs: 训练轮数，默认 20
-                - experiment_name: 实验名称（可选）
-                - tensorboard: TensorBoard 配置字典（可选）
         """
         self.config = config or {}
         
         # 读取超参数配置
         self.lr = self.config.get('lr', 0.01)
         self.epochs = self.config.get('epochs', 20)
-        
-        # 读取 TensorBoard 配置
-        tensorboard_config = self.config.get('tensorboard', {})
-        self.tensorboard_enabled = tensorboard_config.get('enabled', True)
-        self.tensorboard_log_dir = tensorboard_config.get('log_dir', 'runs')
-        self.experiment_name = self.config.get('experiment_name', None)
         
         # 设备选择：优先使用 GPU，若不可用则使用 CPU
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -107,15 +99,7 @@ class BaselineCheck(BaseModel):
         # Adam 优化器：自适应学习率优化算法
         optimizer = optim.Adam(self.model.parameters(), lr=self.lr)
         
-        # 步骤 3：创建 TensorBoard writer（如果启用）
-        writer = None
-        if self.tensorboard_enabled:
-            writer = self._create_tensorboard_writer(
-                experiment_name=self.experiment_name,
-                log_dir=self.tensorboard_log_dir
-            )
-        
-        # ⭐ 步骤 3.5：初始化 Best Model Checkpoint 追踪
+        # ⭐ 步骤 3：初始化 Best Model Checkpoint 追踪
         best_valid_loss = float('inf')
         best_epoch = 0
         best_model_state = None
@@ -155,16 +139,10 @@ class BaselineCheck(BaseModel):
             # 计算平均训练 loss
             avg_loss = total_loss / len(train_loader)
             
-            # 记录训练 loss 到 TensorBoard
-            if writer:
-                self._log_metrics(writer, {'Loss/train': avg_loss}, epoch)
-            
             # 如果提供验证集，计算并记录验证 loss
             avg_valid_loss = None
             if valid_loader is not None:
                 avg_valid_loss = self._compute_validation_loss(valid_loader, criterion)
-                if writer:
-                    self._log_metrics(writer, {'Loss/valid': avg_valid_loss}, epoch)
                 
                 # ⭐ Best Model Checkpoint: 如果当前验证loss是最低的，保存模型
                 if avg_valid_loss < best_valid_loss:
@@ -188,10 +166,6 @@ class BaselineCheck(BaseModel):
             print(f"✓ 已恢复到效果最佳的模型参数（第 {best_epoch} 轮）")
         else:
             print(f"\n✓ 训练完成（未使用验证集，保存最后一轮的模型）")
-        
-        # 步骤 5：关闭 TensorBoard writer
-        if writer:
-            self._close_tensorboard_writer(writer)
 
 
     def predict(self, test_loader):

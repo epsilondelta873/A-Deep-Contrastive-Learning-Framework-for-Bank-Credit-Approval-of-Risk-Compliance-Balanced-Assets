@@ -80,10 +80,6 @@ data:
 # ====================================
 training:
   output_dir: model_param                    # 模型保存目录
-  tensorboard:
-    enabled: true                            # 是否启用 TensorBoard
-    log_dir: runs                            # TensorBoard 日志保存目录
-    log_interval: 1                          # 每隔多少个 epoch 记录一次
 
 # ====================================
 # 评估配置
@@ -285,17 +281,14 @@ model:
 
 ```bash
 # 训练小型网络
-python train.py --config configs/dnn_small.yaml --experiment_name dnn_small
+python train.py --config configs/dnn_small.yaml
 
 # 训练大型网络
-python train.py --config configs/dnn_large.yaml --experiment_name dnn_large
+python train.py --config configs/dnn_large.yaml
 
 # 评估模型
 python evaluate.py --model_path model_param/dnn_model.pkl \
                    --config configs/dnn_config.yaml
-
-# 在 TensorBoard 中对比结果
-tensorboard --logdir=runs
 ```
 
 ---
@@ -324,12 +317,6 @@ class MyModel(BaseModel):
         params = self.config.get('params', {})
         self.param1 = params.get('param1', default_value1)
         self.param2 = params.get('param2', default_value2)
-        
-        # TensorBoard 配置
-        tensorboard_config = self.config.get('tensorboard', {})
-        self.tensorboard_enabled = tensorboard_config.get('enabled', True)
-        self.tensorboard_log_dir = tensorboard_config.get('log_dir', 'runs')
-        self.experiment_name = self.config.get('experiment_name', None)
         
         # 设备选择
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
@@ -389,10 +376,6 @@ data:
 
 training:
   output_dir: model_param
-  tensorboard:
-    enabled: true
-    log_dir: runs
-    log_interval: 1
 
 evaluation:
   top_percent: 0.3
@@ -486,16 +469,14 @@ configs/
 └── my_model_config.yaml       # 你的新模型配置
 ```
 
-### 5. 使用描述性的实验名称
+### 5. 使用描述性的配置文件名称
 
 ```bash
-# ✅ 推荐：包含关键参数信息
-python train.py --config configs/dnn_large.yaml \
-                --experiment_name dnn_h256_l5_d03
+# ✅ 推荐：配置文件名包含关键参数信息
+python train.py --config configs/dnn_large.yaml
 
-# ❌ 不推荐：名称过于笼统
-python train.py --config configs/dnn_large.yaml \
-                --experiment_name exp1
+# ❌ 不推荐：配置文件名过于笼统
+python train.py --config configs/exp1.yaml
 ```
 
 ### 6. 实验记录和版本控制
@@ -554,13 +535,12 @@ network_params = params.get('network', {})
 self.hidden_dim = network_params.get('hidden_dim', 128)
 ```
 
-### Q3: 如何在 TensorBoard 中区分不同配置的实验？
+### Q3: 如何区分不同配置的实验？
 
-**A**: 使用 `--experiment_name` 参数，包含关键配置信息：
+**A**: 使用描述性的配置文件名，并让输出结果文件名与实验对应：
 
 ```bash
-python train.py --config configs/dnn_large.yaml \
-                --experiment_name dnn_h256_l5_d03_lr0001
+python train.py --config configs/dnn_h256_l5_d03_lr0001.yaml
 ```
 
 ### Q4: 如何从命令行覆盖模型特定参数？
@@ -604,7 +584,6 @@ python train.py --config configs/my_experiment.yaml
 - **Baseline 模型实现**: `models/baseline.py` - 简单的逻辑回归示例
 - **DNN 模型实现**: `models/dnn.py` - 完整示例，展示 params 用法
 - **配置加载器**: `configs/config_loader.py` - 了解配置系统原理
-- **TensorBoard 文档**: `TENSORBOARD.md` - 可视化训练过程
 
 ---
 

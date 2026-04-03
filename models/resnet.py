@@ -113,12 +113,6 @@ class ResNetModel(BaseModel):
         print(f"  top_percent={self.top_percent}")
         print(f"  threshold={self.threshold}")
 
-        # TensorBoard 配置
-        tensorboard_config = self.config.get('tensorboard', {})
-        self.tensorboard_enabled = tensorboard_config.get('enabled', True)
-        self.tensorboard_log_dir = tensorboard_config.get('log_dir', 'runs')
-        self.experiment_name = self.config.get('experiment_name', None)
-
         self.device = torch.device('cuda' if torch.cuda.is_available() else 'cpu')
 
         # 延迟初始化
@@ -165,13 +159,6 @@ class ResNetModel(BaseModel):
             weight_decay=self.weight_decay
         )
 
-        writer = None
-        if self.tensorboard_enabled:
-            writer = self._create_tensorboard_writer(
-                experiment_name=self.experiment_name,
-                log_dir=self.tensorboard_log_dir
-            )
-
         best_valid_profit = float('-inf')
         best_valid_loss = float('inf')
         best_epoch = 0
@@ -214,21 +201,10 @@ class ResNetModel(BaseModel):
 
             avg_loss = total_loss / len(train_loader)
 
-            if writer:
-                self._log_metrics(writer, {'Loss/train': avg_loss}, epoch)
-
             avg_valid_loss = None
             valid_metrics = None
             if valid_loader is not None:
                 avg_valid_loss, valid_metrics = self._evaluate_validation(valid_loader, criterion)
-
-                if writer:
-                    self._log_metrics(writer, {
-                        'Loss/valid': avg_valid_loss,
-                        'Profit/valid_total': valid_metrics['total_profit'],
-                        'Profit/valid_avg': valid_metrics['avg_profit'],
-                        'AUC/valid': valid_metrics['auc']
-                    }, epoch)
 
                 if (
                     valid_metrics['total_profit'] > best_valid_profit or
@@ -273,9 +249,6 @@ class ResNetModel(BaseModel):
             print(f"✓ 已恢复到效果最佳的模型参数（第 {best_epoch} 轮）")
         else:
             print(f"\n✓ 训练完成（未使用验证集，保存最后一轮的模型）")
-
-        if writer:
-            self._close_tensorboard_writer(writer)
 
     def predict(self, test_loader):
         """输出分类概率。"""

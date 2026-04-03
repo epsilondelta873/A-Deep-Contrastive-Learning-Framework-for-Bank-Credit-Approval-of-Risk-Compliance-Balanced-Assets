@@ -32,10 +32,6 @@ data:
 training:
   output_dir: model_param                    # 模型保存目录
   seed: 42                                   # 随机种子（保证实验可复现性）
-  tensorboard:
-    enabled: true                            # 是否启用 TensorBoard
-    log_dir: runs                            # TensorBoard 日志保存目录
-    log_interval: 1                          # 每隔多少个 epoch 记录一次
 
 # ====================================
 # 评估配置

@@ -76,7 +76,6 @@ def run_experiment(train_loader, valid_loader, test_loader, params, seed=42):
         'lr': params['lr'],
         'epochs': params['epochs'],
         'pretrained_encoder_path': params.get('pretrained_encoder_path'),
-        'tensorboard': {'enabled': False},
         'params': {
             'hidden_dim': params['hidden_dim'],
             'dropout': params['dropout'],

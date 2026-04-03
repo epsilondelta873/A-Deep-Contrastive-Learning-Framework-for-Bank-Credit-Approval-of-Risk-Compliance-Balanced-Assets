@@ -30,10 +30,6 @@ data:
 training:
   output_dir: model_param
   seed: 42
-  tensorboard:
-    enabled: true
-    log_dir: runs
-    log_interval: 1
   augmentation:
     noise_level: 0.1
     drop_prob: 0.15

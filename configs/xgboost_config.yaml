@@ -26,8 +26,6 @@ data:
 training:
   output_dir: model_param
   seed: 42
-  tensorboard:
-    enabled: false
 
 evaluation:
   top_percent: 0.3

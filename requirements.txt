@@ -9,7 +9,6 @@ joblib>=1.3
 # Note: for CUDA-specific environments, you may prefer installing torch
 # from the official PyTorch channel/index before running `pip install -r requirements.txt`.
 torch>=2.1
-tensorboard>=2.14
 
 # Data I/O and config
 openpyxl>=3.1

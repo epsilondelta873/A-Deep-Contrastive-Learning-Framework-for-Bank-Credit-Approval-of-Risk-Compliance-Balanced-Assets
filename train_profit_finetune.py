@@ -53,12 +53,6 @@ def main():
         help="模型保存目录"
     )
     parser.add_argument(
-        "--experiment_name",
-        type=str,
-        default=None,
-        help="实验名称"
-    )
-    parser.add_argument(
         "--seed",
         type=int,
         default=42,
@@ -145,8 +139,6 @@ def main():
         'lr': config.finetune.lr,
         'epochs': config.finetune.epochs,
         'pretrained_encoder_path': pretrained_encoder_path if use_pretrained else None,
-        'experiment_name': args.experiment_name,
-        'tensorboard': config.training.get('tensorboard', {}),
         'params': {
             'hidden_dim': config.model.params.get('hidden_dim', 128),
             'dropout': config.model.params.get('dropout', 0.3),

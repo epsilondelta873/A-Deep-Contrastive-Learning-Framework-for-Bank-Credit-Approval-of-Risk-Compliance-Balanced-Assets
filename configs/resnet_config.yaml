@@ -34,10 +34,6 @@ data:
 training:
   output_dir: model_param
   seed: 42
-  tensorboard:
-    enabled: true
-    log_dir: runs
-    log_interval: 1
 
 # ====================================
 # 评估配置

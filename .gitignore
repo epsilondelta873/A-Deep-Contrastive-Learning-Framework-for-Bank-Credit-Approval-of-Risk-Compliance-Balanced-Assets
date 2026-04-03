@@ -24,22 +24,16 @@ data/processed/*
 data/embeddings/*
 !data/embeddings/README.md
 
-# Public release exclusions: checkpoints and TensorBoard logs
+# Public release exclusions: model outputs and local run artifacts
 model_param/*
 !model_param/README.md
-runs/*
-!runs/README.md
+runs/
 
 # Experiment summaries / generated outputs
 experiment_summary*.csv
 evaluation_results*.csv
 
-# Local thesis drafts and private office files
-document/*
-!document/README.md
-
-# Auto-generated research scratch space not included in the public release
+# Local-only writing and exploratory research directories
+document/
 autoresearch/
-autoresearch_profit/
-autoresearch_resnet/
-autoresearch_contrastive_resnet/
+autoresearch_*/
