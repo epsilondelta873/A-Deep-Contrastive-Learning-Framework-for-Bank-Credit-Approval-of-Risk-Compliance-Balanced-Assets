@@ -115,7 +115,14 @@ class BaselineCheck(BaseModel):
                 log_dir=self.tensorboard_log_dir
             )
         
+        # ⭐ 步骤 3.5：初始化 Best Model Checkpoint 追踪
+        best_valid_loss = float('inf')
+        best_epoch = 0
+        best_model_state = None
+        
         print(f"Start training Torch Baseline (LR) on {self.device}...")
+        if valid_loader is not None:
+            print("✓ 启用 Best Model Checkpoint: 将自动保存验证集loss最低的模型")
         
         # 步骤 4：迭代训练
         for epoch in range(self.epochs):
@@ -153,19 +160,39 @@ class BaselineCheck(BaseModel):
                 self._log_metrics(writer, {'Loss/train': avg_loss}, epoch)
             
             # 如果提供验证集，计算并记录验证 loss
+            avg_valid_loss = None
             if valid_loader is not None:
                 avg_valid_loss = self._compute_validation_loss(valid_loader, criterion)
                 if writer:
                     self._log_metrics(writer, {'Loss/valid': avg_valid_loss}, epoch)
+                
+                # ⭐ Best Model Checkpoint: 如果当前验证loss是最低的，保存模型
+                if avg_valid_loss < best_valid_loss:
+                    best_valid_loss = avg_valid_loss
+                    best_epoch = epoch + 1
+                    import copy
+                    best_model_state = copy.deepcopy(self.model.state_dict())
+                    
+                    if (epoch + 1) % 5 == 0 or epoch < 10:
+                        print(f"  ⭐ Epoch [{epoch+1}] - New best model! Valid Loss: {avg_valid_loss:.4f}")
             
             # 输出训练进度
             if (epoch + 1) % 5 == 0:
                 valid_msg = f", Valid Loss: {avg_valid_loss:.4f}" if valid_loader else ""
                 print(f"Epoch [{epoch+1}/{self.epochs}], Train Loss: {avg_loss:.4f}{valid_msg}")
         
+        # ⭐ 步骤 4.5：恢复最佳模型
+        if best_model_state is not None:
+            print(f"\n✓ 训练完成！正在恢复 Best Model (Epoch {best_epoch}, Valid Loss: {best_valid_loss:.4f})...")
+            self.model.load_state_dict(best_model_state)
+            print(f"✓ 已恢复到效果最佳的模型参数（第 {best_epoch} 轮）")
+        else:
+            print(f"\n✓ 训练完成（未使用验证集，保存最后一轮的模型）")
+        
         # 步骤 5：关闭 TensorBoard writer
         if writer:
             self._close_tensorboard_writer(writer)
+
 
     def predict(self, test_loader):
         """

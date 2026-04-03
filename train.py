@@ -10,6 +10,7 @@ import argparse
 import os
 import torch
 from ultis.dataset import get_dataloaders
+from ultis.seed import set_seed
 from models import get_model
 from configs import load_config, merge_args_with_config, Config
 
@@ -87,6 +88,12 @@ def main():
         default=None,
         help="实验名称，用于 TensorBoard 日志区分（默认自动生成）"
     )
+    parser.add_argument(
+        "--seed",
+        type=int,
+        default=42,
+        help="随机种子，用于保证实验可复现性（默认 42）"
+    )
     
     args = parser.parse_args()
     
@@ -117,8 +124,13 @@ def main():
     print(f"  训练轮数: {config.model.epochs}")
     print(f"  批次大小: {config.data.batch_size}")
     print(f"  特征数量: {config.data.top_n_features}")
+    print(f"  数据类型: {config.data.data_type}")  # 新增：显示数据类型
     print(f"  输出目录: {config.training.output_dir}")
     print("="*50 + "\n")
+    
+    # 步骤 0.5: 设置随机种子以保证实验可复现性
+    set_seed(args.seed)
+    print()  # 空行分隔
     
     # 步骤 1: 加载数据
     print(f"Loading data...")
@@ -126,7 +138,8 @@ def main():
         data_dir=config.data.data_dir,
         iv_path=config.data.iv_path,
         batch_size=config.data.batch_size,
-        top_n_features=config.data.top_n_features
+        top_n_features=config.data.top_n_features,
+        data_type=config.data.data_type  # 使用配置文件中的数据类型
     )
     
     if 'train' not in dataloaders:
@@ -137,12 +150,15 @@ def main():
     
     # 步骤 2: 初始化模型
     print(f"Initializing model: {config.model.name}")
-    # 将模型配置传递给模型
+    # 将模型配置传递给模型（包括通用参数和模型特定参数）
     model_config = {
         'lr': config.model.lr,
         'epochs': config.model.epochs,
         'experiment_name': args.experiment_name,
-        'tensorboard': config.training.get('tensorboard', {})
+        'tensorboard': config.training.get('tensorboard', {}),
+        'seed': args.seed,  # 传递用于树模型的全局种子
+        'evaluation': config.get('evaluation', {}),
+        'params': config.model.get('params', {})  # 模型特定参数
     }
     model = get_model(config.model.name, config=model_config)
     

@@ -202,12 +202,17 @@ def main():
         data_dir=config.data.data_dir,
         iv_path=config.data.iv_path,
         batch_size=config.data.batch_size,
-        top_n_features=config.data.top_n_features
+        top_n_features=config.data.top_n_features,
+        data_type=config.data.data_type  # 使用配置文件中的数据类型
     )
     
     # 3. 加载模型
     print(f"Loading model: {config.model.name} from {args.model_path}")
-    model = get_model(config.model.name)
+    # 传递模型特定参数（某些模型在加载时可能需要知道结构参数）
+    model_config = {
+        'params': config.model.get('params', {})
+    }
+    model = get_model(config.model.name, config=model_config)
     model.load(args.model_path)
     
     # 4. 评估循环（仅在测试集和拒绝集上评估）

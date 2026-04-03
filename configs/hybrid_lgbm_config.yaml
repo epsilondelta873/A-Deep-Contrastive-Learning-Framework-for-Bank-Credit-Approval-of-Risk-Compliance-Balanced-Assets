@@ -1,0 +1,50 @@
+# -*- coding: utf-8 -*-
+# 混合模型 (ResNet Encoder + LGBM) 配置文件
+
+# ====================================
+# 模型标志
+# ====================================
+model:
+  name: hybrid_lgbm
+
+# ====================================
+# 数据配置 (供 DataLoader 使用)
+# ====================================
+data:
+  data_dir: data/processed                    # 数据目录路径
+  iv_path: data/processed/iv_results.xlsx     # IV 结果文件路径
+  batch_size: 256                             # 推理特征时的批次大小，可以大一些
+  top_n_features: null                        # 保持与预训练时一致的特征输入数量
+  data_type: woe                              # 数据类型: 'woe' 或 'raw'
+
+# ====================================
+# 特征提取配置
+# ====================================
+extract:
+  pretrained_encoder_path: model_param/pretrained_encoder.pth  # 预训练好的编码器权重路径
+  output_dir: data/embeddings                 # 抽取的 NPZ 特征文件保存目录
+  hidden_dim: 256                             # 提取时构建网络的 hidden_dim 需要和预训练对应
+  dropout: 0.3
+
+# ====================================
+# LGBM/XGBoost 模型超参数配置
+# ====================================
+lgbm:
+  n_estimators: 100                           # 树的数量（迭代次数）
+  learning_rate: 0.05                         # 学习率
+  max_depth: 5                                # 树的最大深度
+  num_leaves: 31                              # 叶子节点数 (通常 < 2^max_depth)
+  subsample: 0.8                              # 样本采样率防止过拟合
+  bagging_freq: 1                             # 启用样本采样的前提（必填）
+  colsample_bytree: 0.8                       # 特征采样率防止过拟合
+  random_state: 42                            # 随机种子，确保可复现
+  n_jobs: -1                                  # 利用所有 CPU 核心
+
+# ====================================
+# 评估配置
+# ====================================
+evaluation:
+  top_percent: 0.3                            # 选择排名前 30% 的样本计算利润
+  model_type: classification                  # 模型类型: 二分类
+  threshold: 0.5                              # 分类判断阈值
+  output_file: evaluation_hybrid_lgbm.csv     # 评估结果输出文件

@@ -1,0 +1,45 @@
+# macOS / editor
+.DS_Store
+.vscode/
+.claude/
+
+# Python
+__pycache__/
+*.py[cod]
+.ipynb_checkpoints/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+
+# Virtual environments
+.venv/
+venv/
+.env
+
+# Public release exclusions: raw/processed data and derived embeddings
+data/raw/*
+!data/raw/README.md
+data/processed/*
+!data/processed/README.md
+data/embeddings/*
+!data/embeddings/README.md
+
+# Public release exclusions: checkpoints and TensorBoard logs
+model_param/*
+!model_param/README.md
+runs/*
+!runs/README.md
+
+# Experiment summaries / generated outputs
+experiment_summary*.csv
+evaluation_results*.csv
+
+# Local thesis drafts and private office files
+document/*
+!document/README.md
+
+# Auto-generated research scratch space not included in the public release
+autoresearch/
+autoresearch_profit/
+autoresearch_resnet/
+autoresearch_contrastive_resnet/

@@ -1,0 +1,64 @@
+# -*- coding: utf-8 -*-
+# 对比学习 + 分类微调 ResNet 配置文件
+# 说明：该实验与最终实验共享对比学习预训练口径与监督阶段训练细节，
+#      仅保留“分类头”而非“盈利回归头”的任务差异。
+
+# ====================================
+# 模型配置（预训练阶段）
+# ====================================
+model:
+  name: contrastive_resnet
+  lr: 0.01
+  epochs: 100
+  params:
+    hidden_dim: 256
+    projection_dim: 128
+    dropout: 0.3
+    temperature: 0.3
+
+# ====================================
+# 数据配置
+# ====================================
+data:
+  data_dir: data/processed
+  iv_path: data/processed/iv_results.xlsx
+  batch_size: 256
+  top_n_features: null
+  data_type: woe
+
+# ====================================
+# 训练配置（预训练阶段）
+# ====================================
+training:
+  output_dir: model_param
+  seed: 42
+  tensorboard:
+    enabled: true
+    log_dir: runs
+    log_interval: 1
+  augmentation:
+    noise_level: 0.1
+    drop_prob: 0.15
+    use_both: true
+
+# ====================================
+# 微调配置（分类任务）
+# ====================================
+finetune:
+  lr: 0.0003
+  epochs: 50
+  batch_size: 128
+  freeze_layers: 0
+  weight_decay: 0.0001
+  encoder_lr_scale: 0.5
+  head_lr_scale: 1.5
+  grad_clip_norm: 5.0
+
+# ====================================
+# 评估配置
+# ====================================
+evaluation:
+  top_percent: 0.3
+  model_type: classification
+  threshold: 0.2
+  output_file: evaluation_results.csv

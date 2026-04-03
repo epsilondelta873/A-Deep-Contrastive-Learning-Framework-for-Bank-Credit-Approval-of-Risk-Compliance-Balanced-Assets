@@ -1,0 +1,65 @@
+# -*- coding: utf-8 -*-
+# 盈利敏感 ResNet 配置文件（实验 2）
+
+# ====================================
+# 模型配置（预训练阶段复用实验 1 的编码器）
+# ====================================
+model:
+  name: profit_resnet
+  lr: 0.01                   # 对比学习预训练学习率（复用）
+  epochs: 100                # 预训练轮数（复用）
+  params:
+    hidden_dim: 256          # 编码器隐藏维度
+    projection_dim: 128      # 投影头输出维度（预训练用）
+    dropout: 0.3             # Dropout 比例
+    temperature: 0.3         # InfoNCE 温度参数（预训练用）
+
+# ====================================
+# 数据配置
+# ====================================
+data:
+  data_dir: data/processed
+  iv_path: data/processed/iv_results.xlsx
+  batch_size: 256
+  top_n_features: null
+  data_type: woe
+
+# ====================================
+# 训练配置
+# ====================================
+training:
+  output_dir: model_param
+  seed: 42
+  tensorboard:
+    enabled: true
+    log_dir: runs
+    log_interval: 1
+  augmentation:
+    noise_level: 0.1
+    drop_prob: 0.15
+    use_both: true
+
+# ====================================
+# 盈利敏感微调配置
+# ====================================
+finetune:
+  lr: 0.0003                                # 微调学习率（调参最优值）
+  epochs: 50                                 # 微调轮数
+  batch_size: 128                            # 微调批次大小
+  freeze_layers: 0                           # 冻结编码器层数（0=不冻结）
+  lambda_rnc: 1.0                            # Rank-N-Contrast 损失权重
+  mse_weight: 1.0                            # MSE 损失权重
+  rnc_temperature: 0.1                       # RnC 温度参数
+  weight_decay: 0.0001                       # AdamW 权重衰减
+  encoder_lr_scale: 0.5                      # 编码器学习率缩放
+  head_lr_scale: 1.5                         # 回归头学习率缩放
+  grad_clip_norm: 5.0                        # 梯度裁剪阈值
+
+# ====================================
+# 评估配置
+# ====================================
+evaluation:
+  top_percent: 0.3
+  model_type: regression                     # 回归模型
+  threshold: 0.2
+  output_file: evaluation_results.csv

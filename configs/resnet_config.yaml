@@ -1,0 +1,49 @@
+# -*- coding: utf-8 -*-
+# ResNet 消融实验配置文件
+# 说明：该实验与最终实验共享 ResNetEncoder 骨干与训练细节，
+#      仅去掉对比学习预训练与盈利敏感回归头，保留单阶段分类设定。
+
+# ====================================
+# 模型配置
+# ====================================
+model:
+  name: resnet
+  lr: 0.0003                                # 与最终实验监督阶段对齐
+  epochs: 50                                # 与最终实验监督阶段对齐
+  params:
+    hidden_dim: 256                         # 与最终实验编码器隐藏维度对齐
+    dropout: 0.3                            # 与最终实验对齐
+    weight_decay: 0.0001                    # 与最终实验 AdamW 权重衰减对齐
+    encoder_lr_scale: 0.5                   # 与最终实验对齐
+    head_lr_scale: 1.5                      # 与最终实验对齐
+    grad_clip_norm: 5.0                     # 与最终实验对齐
+
+# ====================================
+# 数据配置
+# ====================================
+data:
+  data_dir: data/processed
+  iv_path: data/processed/iv_results.xlsx
+  batch_size: 128                           # 与最终实验监督阶段对齐
+  top_n_features: null
+  data_type: woe
+
+# ====================================
+# 训练配置
+# ====================================
+training:
+  output_dir: model_param
+  seed: 42
+  tensorboard:
+    enabled: true
+    log_dir: runs
+    log_interval: 1
+
+# ====================================
+# 评估配置
+# ====================================
+evaluation:
+  top_percent: 0.3
+  model_type: classification
+  threshold: 0.2
+  output_file: evaluation_results.csv

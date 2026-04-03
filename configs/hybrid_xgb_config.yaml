@@ -1,0 +1,50 @@
+# -*- coding: utf-8 -*-
+# 混合模型 (ResNet Encoder + XGBoost) 配置文件
+
+# ====================================
+# 模型标志
+# ====================================
+model:
+  name: hybrid_xgb
+
+# ====================================
+# 数据配置 (供 DataLoader 使用)
+# ====================================
+data:
+  data_dir: data/processed
+  iv_path: data/processed/iv_results.xlsx
+  batch_size: 256
+  top_n_features: null
+  data_type: woe
+
+# ====================================
+# 特征提取配置
+# ====================================
+extract:
+  pretrained_encoder_path: model_param/pretrained_encoder.pth
+  output_dir: data/embeddings
+  hidden_dim: 256
+  dropout: 0.3
+
+# ====================================
+# XGBoost 模型超参数配置
+# ====================================
+xgb:
+  n_estimators: 100                           # 树的数量
+  learning_rate: 0.05                         # 学习率
+  max_depth: 5                                # 树的最大深度
+  subsample: 0.8                              # 样本采样率防止过拟合
+  colsample_bytree: 0.8                       # 特征采样率防止过拟合
+  random_state: 42                            # 随机种子，确保可复现
+  n_jobs: -1                                  # 利用所有 CPU 核心
+  use_label_encoder: false                    # 避免控制台频繁弹出弃用警告
+  eval_metric: logloss                        # 用于评估的目标函数
+
+# ====================================
+# 评估配置
+# ====================================
+evaluation:
+  top_percent: 0.3                            # 选择排名前 30% 的样本计算利润
+  model_type: classification                  # 模型类型: 二分类
+  threshold: 0.5                              # 分类判断阈值
+  output_file: evaluation_hybrid_xgb.csv      # 评估结果输出文件

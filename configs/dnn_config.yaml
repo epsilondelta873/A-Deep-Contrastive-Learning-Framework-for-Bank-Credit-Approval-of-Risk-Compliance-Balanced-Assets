@@ -1,15 +1,19 @@
 # -*- coding: utf-8 -*-
-# 基础配置文件
-# 该文件包含baseline模型训练和评估的默认超参数
+# DNN 模型配置示例
+# 该文件展示如何为深度神经网络模型配置特定参数
 
 # ====================================
 # 模型配置
 # ====================================
 model:
-  name: baseline          # 模型名称
-  lr: 0.001              # 学习率（调参最优值）
-  epochs: 50             # 训练轮数（与其他实验一致）
-  params: {}             # 模型特定参数（baseline 不需要额外参数，留空）
+  name: dnn              # 模型名称（需要先实现 DNN 模型）
+  lr: 0.001             # 学习率
+  epochs: 50            # 训练轮数
+  params:               # DNN 模型特定参数
+    hidden_dim: 64     # 隐藏层维度
+    num_layers: 3       # 隐藏层数量
+    dropout: 0.3        # Dropout 比例
+    activation: relu    # 激活函数类型 (relu, tanh, etc.)
 
 # ====================================
 # 数据配置
@@ -18,7 +22,7 @@ data:
   data_dir: data/processed                    # 数据目录路径
   iv_path: data/processed/iv_results.xlsx     # IV 结果文件路径
   batch_size: 64                              # 批次大小
-  top_n_features: 15                           # 选择 IV 值最高的前 N 个特征（调参最优值）
+  top_n_features: 20                          # 选择 IV 值最高的前 N 个特征
   data_type: woe                              # 数据类型: 'woe' 或 'raw'
 
 # ====================================

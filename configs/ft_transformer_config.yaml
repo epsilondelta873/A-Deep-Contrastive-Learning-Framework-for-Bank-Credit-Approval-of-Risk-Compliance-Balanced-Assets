@@ -1,15 +1,20 @@
 # -*- coding: utf-8 -*-
-# 基础配置文件
-# 该文件包含baseline模型训练和评估的默认超参数
+# FT-Transformer 模型配置文件（基础配置 - 快速实验）
 
 # ====================================
 # 模型配置
 # ====================================
 model:
-  name: baseline          # 模型名称
-  lr: 0.001              # 学习率（调参最优值）
-  epochs: 50             # 训练轮数（与其他实验一致）
-  params: {}             # 模型特定参数（baseline 不需要额外参数，留空）
+  name: ft_transformer    # 模型名称
+  lr: 0.001               # 学习率（Transformer通常需要较小学习率）
+  epochs: 50             # 训练轮数
+  params:                # FT-Transformer 模型特定参数
+    d_token: 128          # Token embedding维度（基础配置）
+    n_blocks: 2          # Transformer block数量（基础配置）
+    n_heads: 4           # 多头注意力的头数
+    d_ffn: 256           # Feed-Forward Network维度 (d_token × 4)
+    attention_dropout: 0.2  # Attention层的dropout比例
+    ffn_dropout: 0.3        # FFN层的dropout比例
 
 # ====================================
 # 数据配置
@@ -17,8 +22,8 @@ model:
 data:
   data_dir: data/processed                    # 数据目录路径
   iv_path: data/processed/iv_results.xlsx     # IV 结果文件路径
-  batch_size: 64                              # 批次大小
-  top_n_features: 15                           # 选择 IV 值最高的前 N 个特征（调参最优值）
+  batch_size: 128                             # 批次大小（基础配置使用较大batch）
+  top_n_features: null                          # 选择 IV 值最高的前 20 个特征（快速实验）
   data_type: woe                              # 数据类型: 'woe' 或 'raw'
 
 # ====================================

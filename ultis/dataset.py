@@ -106,6 +106,30 @@ class CreditDataset(Dataset):
             missing = [f for f in self.feature_names if f not in self.df.columns]
             if missing:
                 raise ValueError(f"Missing features in dataset: {missing}")
+        
+        # 🆕 过滤非数值列（对于 RAW 数据很重要）
+        # 检查每一列是否为数值类型
+        numeric_features = []
+        non_numeric_features = []
+        
+        for col in self.feature_names:
+            if pd.api.types.is_numeric_dtype(self.df[col]):
+                numeric_features.append(col)
+            else:
+                non_numeric_features.append(col)
+        
+        # 如果有非数值列，发出警告并过滤掉
+        if non_numeric_features:
+            print(f"警告: 以下 {len(non_numeric_features)} 个非数值列将被过滤:")
+            print(f"  {non_numeric_features[:10]}")  # 只显示前10个
+            if len(non_numeric_features) > 10:
+                print(f"  ... 还有 {len(non_numeric_features) - 10} 个")
+            self.feature_names = numeric_features
+            print(f"保留 {len(numeric_features)} 个数值特征列")
+        
+        # 检查是否还有特征剩余
+        if len(self.feature_names) == 0:
+            raise ValueError("过滤非数值列后没有特征剩余！")
                 
         # 提取特征、标签和利润为 NumPy 数组
         self.X = self.df[self.feature_names].values.astype(np.float32)

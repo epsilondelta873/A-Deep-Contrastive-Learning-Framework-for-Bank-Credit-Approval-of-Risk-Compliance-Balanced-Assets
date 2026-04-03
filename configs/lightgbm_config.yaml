@@ -1,0 +1,36 @@
+# -*- coding: utf-8 -*-
+# LightGBM 配置文件
+
+model:
+  name: lightgbm
+  lr: 0.1
+  epochs: 200
+  params:
+    max_depth: 6
+    learning_rate: 0.1
+    n_estimators: 200
+    subsample: 0.8
+    colsample_bytree: 0.8
+    min_child_samples: 20
+    reg_alpha: 0.1
+    reg_lambda: 1.0
+    early_stopping_rounds: 20
+
+data:
+  data_dir: data/processed
+  iv_path: data/processed/iv_results.xlsx
+  batch_size: 4096
+  top_n_features: null
+  data_type: woe
+
+training:
+  output_dir: model_param
+  seed: 42
+  tensorboard:
+    enabled: false
+
+evaluation:
+  top_percent: 0.3
+  model_type: classification
+  threshold: 0.2
+  output_file: evaluation_results.csv
